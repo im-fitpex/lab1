@@ -81,3 +81,32 @@ class Reaction:
         self.reaction_type = reaction_type
 
 
+class MediaMessage(Message):
+    def __init__(self, message_id, sender, recipient, content, timestamp, attachment):
+        super().__init__(message_id, sender, recipient, content, timestamp)
+        self.attachment = attachment
+
+
+class Authentication:
+    def __init__(self):
+        self.logged_in_users = {}
+
+    def login(self, user, password):
+        # Simplified example
+        self.logged_in_users[user.user_id] = True
+
+    def logout(self, user):
+        if user.user_id in self.logged_in_users:
+            del self.logged_in_users[user.user_id]
+
+
+class Settings:
+    def __init__(self, user):
+        self.user = user
+        self.preferences = {}
+
+    def update_preference(self, key, value):
+        self.preferences[key] = value
+
+    def change_username(self, new_username):
+        self.user.username = new_username
