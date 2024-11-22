@@ -1,21 +1,44 @@
+import json
+import xml.etree.ElementTree as ET
+
+# Custom exceptions
+class MessengerException(Exception):
+    pass
+
+
+class UserNotFoundException(MessengerException):
+    pass
+
+
+class InvalidMessageException(MessengerException):
+    pass
+
+
 class User:
-    def __init__(self, user_id, username, email, status="offline"):
+    def __init__(self, user_id, username, email):
         self.user_id = user_id
         self.username = username
         self.email = email
-        self.status = status
-        self.contacts = []
+        self.chats = []
 
-    def add_contact(self, contact):
-        if contact not in self.contacts:
-            self.contacts.append(contact)
+    def join_chat(self, chat):
+        if chat not in self.chats:
+            self.chats.append(chat)
+        else:
+            raise MessengerException("User is already in this chat.")
 
-    def change_status(self, status):
-        self.status = status
+    def send_message(self, chat, content):
+        if chat not in self.chats:
+            raise UserNotFoundException("User is not a member of this chat.")
+        if not content.strip():
+            raise InvalidMessageException("Message content cannot be empty.")
+        chat.add_message(Message(len(chat.messages) + 1, self, content))
 
 
 class Message:
-    def __init__(self, message_id, sender, recipient, content, timestamp, is_read=False):
+    def __init__(
+        self, message_id, sender, recipient, content, timestamp, is_read=False
+    ):
         self.message_id = message_id
         self.sender = sender
         self.recipient = recipient
@@ -41,17 +64,22 @@ class Chat:
 
 
 class GroupChat(Chat):
-    def __init__(self, chat_id, participants, group_name):
-        super().__init__(chat_id, participants)
+    def __init__(self, chat_id, group_name):
+        super().__init__(chat_id)
         self.group_name = group_name
+        self.participants = []
 
     def add_participant(self, user):
         if user not in self.participants:
             self.participants.append(user)
+        else:
+            raise MessengerException("User is already in this group.")
 
     def remove_participant(self, user):
         if user in self.participants:
             self.participants.remove(user)
+        else:
+            raise UserNotFoundException("User not found in the group.")
 
 
 class Attachment:
