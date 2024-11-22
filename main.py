@@ -54,3 +54,30 @@ class GroupChat(Chat):
             self.participants.remove(user)
 
 
+class Attachment:
+    def __init__(self, file_name, file_size, file_type, uploaded_by):
+        self.file_name = file_name
+        self.file_size = file_size
+        self.file_type = file_type
+        self.uploaded_by = uploaded_by
+
+
+class Notification:
+    def __init__(self, notification_id, user, message, timestamp, is_seen=False):
+        self.notification_id = notification_id
+        self.user = user
+        self.message = message
+        self.timestamp = timestamp
+        self.is_seen = is_seen
+
+    def mark_as_seen(self):
+        self.is_seen = True
+
+
+class Reaction:
+    def __init__(self, message_id, user, reaction_type):
+        self.message_id = message_id
+        self.user = user
+        self.reaction_type = reaction_type
+
+
