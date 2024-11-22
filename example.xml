@@ -1,0 +1,22 @@
+<messenger>
+    <users>
+        <user id="1">
+            <username>example</username>
+            <email>example@example.com</email>
+            <chats>
+                <chat>1</chat>
+                <chat>2</chat>
+            </chats>
+        </user>
+    </users>
+    <chats>
+        <chat id="1">
+            <messages>
+                <message id="1">
+                    <sender_id>1</sender_id>
+                    <content>Hello!</content>
+                </message>
+            </messages>
+        </chat>
+    </chats>
+</messenger>
