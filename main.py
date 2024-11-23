@@ -244,12 +244,12 @@ class XMLDataStore:
 def main():
     json_store = DataStore("db.json")
     xml_store = XMLDataStore("db.xml")
-
+    # Пример взаимодействия с json
     json_user_data = json_store.get_user(1)
     json_user = User(json_user_data["user_id"], json_user_data["username"], json_user_data["email"])
     json_user.username = "Updated_JSON_User"
     json_store.update_user(json_user)
-
+    # Пример взаимодействия с xml
     xml_user_data = xml_store.get_user(1)
     xml_user = User(xml_user_data["user_id"], xml_user_data["username"], xml_user_data["email"])
     xml_user.username = "Updated_XML_User"
