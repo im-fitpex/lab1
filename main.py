@@ -1,59 +1,8 @@
 import json
+import xml.etree.ElementTree as ET
 
 
-# Класс для работы с JSON
-class DataStore:
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.data = self.load()
-
-    def load(self):
-        # Загрузка данных из JSON-файла.
-        with open(self.file_path, "r") as file:
-            return json.load(file)
-
-    def save(self):
-        # Сохранение данных в JSON-файл.
-        with open(self.file_path, "w") as file:
-            json.dump(self.data, file, indent=4)
-
-    def get_user(self, user_id):
-        # Получение пользователя по ID.
-        return next(
-            (user for user in self.data["users"] if user["user_id"] == user_id), None
-        )
-
-    def update_user(self, user):
-        # Обновление данных пользователя.
-        for stored_user in self.data["users"]:
-            if stored_user["user_id"] == user.user_id:
-                stored_user.update(
-                    {
-                        "username": user.username,
-                        "email": user.email,
-                        "chats": [chat.chat_id for chat in user.chats],
-                    }
-                )
-                break
-        self.save()
-
-    def update_chat(self, chat):
-        # Обновление данных чата.
-        for stored_chat in self.data["chats"]:
-            if stored_chat["chat_id"] == chat.chat_id:
-                stored_chat["messages"] = [
-                    {
-                        "message_id": message.message_id,
-                        "sender_id": message.sender.user_id,
-                        "content": message.content,
-                    }
-                    for message in chat.messages
-                ]
-                break
-        self.save()
-
-
-# Кастомные исключения
+# Общие исключения
 class MessengerException(Exception):
     pass
 
@@ -66,7 +15,7 @@ class InvalidMessageException(MessengerException):
     pass
 
 
-# Основные классы
+# Модели данных
 class User:
     def __init__(self, user_id, username, email):
         self.user_id = user_id
@@ -89,10 +38,14 @@ class User:
 
 
 class Message:
-    def __init__(self, message_id, sender, content):
+    def __init__(self, message_id, sender, content, is_read=False):
         self.message_id = message_id
         self.sender = sender
         self.content = content
+        self.is_read = is_read
+
+    def mark_as_read(self):
+        self.is_read = True
 
 
 class Chat:
@@ -102,6 +55,9 @@ class Chat:
 
     def add_message(self, message):
         self.messages.append(message)
+
+    def get_last_message(self):
+        return self.messages[-1] if self.messages else None
 
 
 class GroupChat(Chat):
@@ -132,11 +88,10 @@ class Attachment:
 
 
 class Notification:
-    def __init__(self, notification_id, user, message, timestamp, is_seen=False):
+    def __init__(self, notification_id, user, message, is_seen=False):
         self.notification_id = notification_id
         self.user = user
         self.message = message
-        self.timestamp = timestamp
         self.is_seen = is_seen
 
     def mark_as_seen(self):
@@ -161,7 +116,6 @@ class Authentication:
         self.logged_in_users = {}
 
     def login(self, user, password):
-        # Simplified example
         self.logged_in_users[user.user_id] = True
 
     def logout(self, user):
@@ -181,44 +135,128 @@ class Settings:
         self.user.username = new_username
 
 
-# Основная функция
+# Работа с JSON
+class DataStore:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.data = self.load()
+
+    def load(self):
+        with open(self.file_path, 'r') as file:
+            return json.load(file)
+
+    def save(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self.data, file, indent=4)
+
+    def get_user(self, user_id):
+        return next((user for user in self.data["users"] if user["user_id"] == user_id), None)
+
+    def update_user(self, user):
+        for stored_user in self.data["users"]:
+            if stored_user["user_id"] == user.user_id:
+                stored_user.update({
+                    "username": user.username,
+                    "email": user.email,
+                    "chats": [chat.chat_id for chat in user.chats]
+                })
+                break
+        self.save()
+
+    def update_chat(self, chat):
+        for stored_chat in self.data["chats"]:
+            if stored_chat["chat_id"] == chat.chat_id:
+                stored_chat["messages"] = [
+                    {
+                        "message_id": message.message_id,
+                        "sender_id": message.sender.user_id,
+                        "content": message.content
+                    }
+                    for message in chat.messages
+                ]
+                break
+        self.save()
+
+
+# Работа с XML
+class XMLDataStore:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.tree = ET.parse(self.file_path)
+        self.root = self.tree.getroot()
+
+    def save(self):
+        self.tree.write(self.file_path, encoding="utf-8", xml_declaration=True)
+
+    def get_user(self, user_id):
+        user_elem = self.root.find(f"./users/user[@id='{user_id}']")
+        if user_elem is None:
+            return None
+        return {
+            "user_id": int(user_elem.get("id")),
+            "username": user_elem.find("username").text,
+            "email": user_elem.find("email").text,
+            "chats": [
+                int(chat_elem.text) for chat_elem in user_elem.find("chats")
+            ]
+        }
+
+    def update_user(self, user):
+        user_elem = self.root.find(f"./users/user[@id='{user.user_id}']")
+        if user_elem is not None:
+            user_elem.find("username").text = user.username
+            user_elem.find("email").text = user.email
+            chats_elem = user_elem.find("chats")
+            chats_elem.clear()
+            for chat in user.chats:
+                ET.SubElement(chats_elem, "chat").text = str(chat.chat_id)
+        self.save()
+
+    def get_chat(self, chat_id):
+        chat_elem = self.root.find(f"./chats/chat[@id='{chat_id}']")
+        if chat_elem is None:
+            return None
+        return {
+            "chat_id": int(chat_elem.get("id")),
+            "messages": [
+                {
+                    "message_id": int(msg_elem.get("id")),
+                    "sender_id": int(msg_elem.find("sender_id").text),
+                    "content": msg_elem.find("content").text,
+                }
+                for msg_elem in chat_elem.find("messages")
+            ],
+        }
+
+    def update_chat(self, chat):
+        chat_elem = self.root.find(f"./chats/chat[@id='{chat.chat_id}']")
+        if chat_elem is not None:
+            messages_elem = chat_elem.find("messages")
+            messages_elem.clear()
+            for message in chat.messages:
+                msg_elem = ET.SubElement(messages_elem, "message", id=str(message.message_id))
+                ET.SubElement(msg_elem, "sender_id").text = str(message.sender.user_id)
+                ET.SubElement(msg_elem, "content").text = message.content
+        self.save()
+
+
+# Основной код
 def main():
-    # Инициализация хранилища
-    data_store = DataStore("example.json")
+    json_store = DataStore("db.json")
+    xml_store = XMLDataStore("db.xml")
 
-    # Загрузка пользователя
-    user_data = data_store.get_user(1)
-    if not user_data:
-        raise UserNotFoundException("User not found in JSON.")
+    json_user_data = json_store.get_user(1)
+    json_user = User(json_user_data["user_id"], json_user_data["username"], json_user_data["email"])
+    json_user.username = "Updated_JSON_User"
+    json_store.update_user(json_user)
 
-    user = User(user_data["user_id"], user_data["username"], user_data["email"])
+    xml_user_data = xml_store.get_user(1)
+    xml_user = User(xml_user_data["user_id"], xml_user_data["username"], xml_user_data["email"])
+    xml_user.username = "Updated_XML_User"
+    xml_store.update_user(xml_user)
 
-    # Загрузка чатов
-    chats = []
-    for chat_data in data_store.data["chats"]:
-        chat = Chat(chat_data["chat_id"])
-        for message_data in chat_data["messages"]:
-            sender = user if message_data["sender_id"] == user.user_id else None
-            chat.add_message(
-                Message(message_data["message_id"], sender, message_data["content"])
-            )
-        chats.append(chat)
-
-    # Добавление пользователя в чат
-    chat = chats[0]
-    user.join_chat(chat)
-
-    # Пример изменения данных
-    user.username = "new_username"
-    data_store.update_user(user)
-
-    # Пример отправки сообщения
-    user.send_message(chat, "Updated message!")
-    data_store.update_chat(chat)
-
-    print("JSON успешно обновлён!")
+    print("Данные обновлены!")
 
 
-# Начало программы
 if __name__ == "__main__":
     main()
