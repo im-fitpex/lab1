@@ -1,0 +1,34 @@
+{
+    "users": [
+        {
+            "user_id": 1,
+            "username": "new_username",
+            "email": "example@example.com",
+            "chats": [
+                1
+            ]
+        }
+    ],
+    "chats": [
+        {
+            "chat_id": 1,
+            "messages": [
+                {
+                    "message_id": 1,
+                    "sender_id": 1,
+                    "content": "Hello!"
+                },
+                {
+                    "message_id": 2,
+                    "sender_id": 1,
+                    "content": "Updated message!"
+                },
+                {
+                    "message_id": 3,
+                    "sender_id": 1,
+                    "content": "Updated message!"
+                }
+            ]
+        }
+    ]
+}

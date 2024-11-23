@@ -1,7 +1,59 @@
 import json
-import xml.etree.ElementTree as ET
 
-# Custom exceptions
+
+# Класс для работы с JSON
+class DataStore:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.data = self.load()
+
+    def load(self):
+        # Загрузка данных из JSON-файла.
+        with open(self.file_path, "r") as file:
+            return json.load(file)
+
+    def save(self):
+        # Сохранение данных в JSON-файл.
+        with open(self.file_path, "w") as file:
+            json.dump(self.data, file, indent=4)
+
+    def get_user(self, user_id):
+        # Получение пользователя по ID.
+        return next(
+            (user for user in self.data["users"] if user["user_id"] == user_id), None
+        )
+
+    def update_user(self, user):
+        # Обновление данных пользователя.
+        for stored_user in self.data["users"]:
+            if stored_user["user_id"] == user.user_id:
+                stored_user.update(
+                    {
+                        "username": user.username,
+                        "email": user.email,
+                        "chats": [chat.chat_id for chat in user.chats],
+                    }
+                )
+                break
+        self.save()
+
+    def update_chat(self, chat):
+        # Обновление данных чата.
+        for stored_chat in self.data["chats"]:
+            if stored_chat["chat_id"] == chat.chat_id:
+                stored_chat["messages"] = [
+                    {
+                        "message_id": message.message_id,
+                        "sender_id": message.sender.user_id,
+                        "content": message.content,
+                    }
+                    for message in chat.messages
+                ]
+                break
+        self.save()
+
+
+# Кастомные исключения
 class MessengerException(Exception):
     pass
 
@@ -14,6 +66,7 @@ class InvalidMessageException(MessengerException):
     pass
 
 
+# Основные классы
 class User:
     def __init__(self, user_id, username, email):
         self.user_id = user_id
@@ -36,31 +89,19 @@ class User:
 
 
 class Message:
-    def __init__(
-        self, message_id, sender, recipient, content, timestamp, is_read=False
-    ):
+    def __init__(self, message_id, sender, content):
         self.message_id = message_id
         self.sender = sender
-        self.recipient = recipient
         self.content = content
-        self.timestamp = timestamp
-        self.is_read = is_read
-
-    def mark_as_read(self):
-        self.is_read = True
 
 
 class Chat:
-    def __init__(self, chat_id, participants):
+    def __init__(self, chat_id):
         self.chat_id = chat_id
-        self.participants = participants
         self.messages = []
 
     def add_message(self, message):
         self.messages.append(message)
-
-    def get_last_message(self):
-        return self.messages[-1] if self.messages else None
 
 
 class GroupChat(Chat):
@@ -110,8 +151,8 @@ class Reaction:
 
 
 class MediaMessage(Message):
-    def __init__(self, message_id, sender, recipient, content, timestamp, attachment):
-        super().__init__(message_id, sender, recipient, content, timestamp)
+    def __init__(self, message_id, sender, content, attachment):
+        super().__init__(message_id, sender, content)
         self.attachment = attachment
 
 
@@ -138,3 +179,46 @@ class Settings:
 
     def change_username(self, new_username):
         self.user.username = new_username
+
+
+# Основная функция
+def main():
+    # Инициализация хранилища
+    data_store = DataStore("example.json")
+
+    # Загрузка пользователя
+    user_data = data_store.get_user(1)
+    if not user_data:
+        raise UserNotFoundException("User not found in JSON.")
+
+    user = User(user_data["user_id"], user_data["username"], user_data["email"])
+
+    # Загрузка чатов
+    chats = []
+    for chat_data in data_store.data["chats"]:
+        chat = Chat(chat_data["chat_id"])
+        for message_data in chat_data["messages"]:
+            sender = user if message_data["sender_id"] == user.user_id else None
+            chat.add_message(
+                Message(message_data["message_id"], sender, message_data["content"])
+            )
+        chats.append(chat)
+
+    # Добавление пользователя в чат
+    chat = chats[0]
+    user.join_chat(chat)
+
+    # Пример изменения данных
+    user.username = "new_username"
+    data_store.update_user(user)
+
+    # Пример отправки сообщения
+    user.send_message(chat, "Updated message!")
+    data_store.update_chat(chat)
+
+    print("JSON успешно обновлён!")
+
+
+# Начало программы
+if __name__ == "__main__":
+    main()
